@@ -5,4 +5,7 @@ Modelagem Visual > Excalidraw
 
 Dados Abertos > ANTT
     * [ANTT - Material Rodante](https://dados.antt.gov.br/dataset/material-rodante)
-    * [PBH - Ferroviario](https://dados.pbh.gov.br/pt_BR/dataset/?tags=vias&_res_format_limit=0&_tags_limit=0&_organization_limit=0&res_format=PDF&organization=prodabel_pbh&tags=ferrovia) 
+    * [PBH - Ferroviario](https://dados.pbh.gov.br/pt_BR/dataset/?tags=vias&_res_format_limit=0&_tags_limit=0&_organization_limit=0&res_format=PDF&organization=prodabel_pbh&tags=ferrovia)
+
+Bibliograficas do PELTMG
+    * [Bibliografia - R:](R:\GEPPI\COPPI\PELT\Bibliografia)
