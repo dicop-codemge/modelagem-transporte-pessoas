@@ -214,7 +214,6 @@ class PDFReader:
             'file_name': os.path.basename(self.file_path)
         }
 
-
 class DataStructureDetector:
     """
     Classe para detectar dados estruturados em texto extraído de PDFs.
