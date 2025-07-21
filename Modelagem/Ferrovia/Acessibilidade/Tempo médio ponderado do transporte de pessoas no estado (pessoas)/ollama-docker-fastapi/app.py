@@ -45,6 +45,7 @@ class ChatRequest(BaseModel):
     top_k: Optional[int] = 40
     top_p: Optional[float] = 0.9
     max_tokens: Optional[int] = None
+    timeout: Optional[int] = 300  # Novo parâmetro timeout (padrão 5 minutos)
 
 class ChatResponse(BaseModel):
     sucesso: bool
@@ -61,9 +62,9 @@ async def root():
     return {
         "status": "ativo",
         "servico": "Ollama Proxy",
-        "versao": "1.0.0",
+        "versao": "1.0.1",  # Versão atualizada
         "ollama_url": OLLAMA_BASE_URL,
-        "funcao": "Proxy transparente para Ollama"
+        "funcao": "Proxy transparente para Ollama com timeout configurável"
     }
 
 @app.get("/health")
@@ -107,17 +108,21 @@ async def get_modelos_disponiveis():
         return {"modelos": [], "erro": str(e)}
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat_with_model(request: ChatRequest):
+async def chat(request: ChatRequest):
     """
     Proxy direto para conversa com modelo
-    Apenas repassa o prompt sem modificar
+    Agora aceita timeout configurável
     """
     try:
         import time
         start_time = time.time()
         
+        # Usar timeout do parâmetro ou padrão de 300s (5 min)
+        timeout_value = request.timeout or 300
+        
         logger.info(f"🤖 Repassando prompt para modelo: {request.modelo}")
         logger.info(f"📝 Prompt (primeiros 100 chars): {request.prompt[:100]}...")
+        logger.info(f"⏱️ Timeout configurado: {timeout_value}s")
         
         # Preparar requisição exatamente como recebida
         ollama_request = {
@@ -135,11 +140,11 @@ async def chat_with_model(request: ChatRequest):
         if request.max_tokens:
             ollama_request["options"]["num_predict"] = request.max_tokens
         
-        # Enviar para Ollama (sem modificar nada)
+        # Enviar para Ollama usando timeout configurável
         response = requests.post(
             f"{OLLAMA_BASE_URL}/api/generate",
             json=ollama_request,
-            timeout=300  # 5 minutos
+            timeout=timeout_value  # Usar timeout do parâmetro
         )
         
         end_time = time.time()
@@ -164,10 +169,10 @@ async def chat_with_model(request: ChatRequest):
         )
         
     except requests.exceptions.Timeout:
-        logger.error("⏱️ Timeout na comunicação com Ollama")
+        logger.error(f"⏱️ Timeout após {timeout_value}s na comunicação com Ollama")
         raise HTTPException(
             status_code=504,
-            detail="Timeout: Modelo demorou muito para responder"
+            detail=f"Timeout: Modelo demorou mais que {timeout_value}s para responder"
         )
     except requests.exceptions.RequestException as e:
         logger.error(f"🔌 Erro de conexão: {e}")
@@ -222,7 +227,7 @@ async def baixar_modelo(modelo: dict):
             detail=f"Erro de conexão: {str(e)}"
         )
 
-@app.post("/ollama/{path:path}")
+@app.api_route("/ollama/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_ollama(path: str, request: Request):
     """
     Proxy genérico para qualquer endpoint do Ollama
