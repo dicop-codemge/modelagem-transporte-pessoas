@@ -11,15 +11,15 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 
-
 class PDFReader:
     """
     Classe para leitura de PDFs usando múltiplas bibliotecas.
     Otimizada para extração de dados estruturados ferroviários.
     """
     
-    def __init__(self, file_path):
+    def __init__(self, file_path, verbose=True):
         self.file_path = file_path
+        self.verbose = verbose
         self.validate_file()
     
     def validate_file(self):
@@ -36,6 +36,11 @@ class PDFReader:
                 PyPDF2.PdfReader(file)
         except Exception as e:
             raise ValueError(f"Arquivo PDF corrompido ou inválido: {e}")
+    
+    def _print(self, message):
+        """Print condicional baseado no verbose"""
+        if self.verbose:
+            print(message)
     
     def get_num_pages(self):
         """Retorna o número total de páginas do PDF"""
@@ -73,7 +78,7 @@ class PDFReader:
                             'method': 'PyPDF2'
                         })
                 except Exception as e:
-                    print(f"⚠️ Erro ao extrair página {page_num + 1} com PyPDF2: {e}")
+                    self._print(f"⚠️ Erro ao extrair página {page_num + 1} com PyPDF2: {e}")
                     continue
         
         return pages
@@ -108,11 +113,11 @@ class PDFReader:
                                 'method': 'pdfplumber'
                             })
                     except Exception as e:
-                        print(f"⚠️ Erro ao extrair página {page_num + 1} com pdfplumber: {e}")
+                        self._print(f"⚠️ Erro ao extrair página {page_num + 1} com pdfplumber: {e}")
                         continue
         
         except Exception as e:
-            print(f"❌ Erro ao abrir PDF com pdfplumber: {e}")
+            self._print(f"❌ Erro ao abrir PDF com pdfplumber: {e}")
             return []
         
         return pages
@@ -148,11 +153,11 @@ class PDFReader:
                                 'method': 'pdfminer'
                             })
                     except Exception as e:
-                        print(f"⚠️ Erro ao extrair página {page_num + 1} com pdfminer: {e}")
+                        self._print(f"⚠️ Erro ao extrair página {page_num + 1} com pdfminer: {e}")
                         continue
         
         except Exception as e:
-            print(f"❌ Erro ao processar PDF com pdfminer: {e}")
+            self._print(f"❌ Erro ao processar PDF com pdfminer: {e}")
             return []
         
         return pages
@@ -162,7 +167,7 @@ class PDFReader:
         Extrai texto usando o melhor método disponível.
         Tenta múltiplas bibliotecas para garantir melhor resultado.
         """
-        print(f"🔍 Extraindo texto das páginas {start_page} a {end_page or 'fim'}")
+        self._print(f"🔍 Extraindo texto das páginas {start_page} a {end_page or 'fim'}")
         
         methods = [
             ("pdfplumber", self.extract_text_pdfplumber),
@@ -175,27 +180,27 @@ class PDFReader:
         
         for method_name, method_func in methods:
             try:
-                print(f"🔄 Tentando método: {method_name}")
+                self._print(f"🔄 Tentando método: {method_name}")
                 result = method_func(start_page, end_page)
                 
                 if result and len(result) > len(best_result):
                     best_result = result
                     best_method = method_name
-                    print(f"✅ {method_name}: {len(result)} páginas extraídas")
+                    self._print(f"✅ {method_name}: {len(result)} páginas extraídas")
                 elif result:
-                    print(f"✅ {method_name}: {len(result)} páginas extraídas")
+                    self._print(f"✅ {method_name}: {len(result)} páginas extraídas")
                 else:
-                    print(f"❌ {method_name}: Nenhuma página extraída")
+                    self._print(f"❌ {method_name}: Nenhuma página extraída")
                 
             except Exception as e:
-                print(f"❌ Erro com {method_name}: {e}")
+                self._print(f"❌ Erro com {method_name}: {e}")
                 continue
         
         if best_result:
-            print(f"🎯 Melhor método: {best_method} ({len(best_result)} páginas)")
+            self._print(f"🎯 Melhor método: {best_method} ({len(best_result)} páginas)")
             return best_result
         else:
-            print("❌ Nenhum método conseguiu extrair texto")
+            self._print("❌ Nenhum método conseguiu extrair texto")
             return []
     
     def extract_text_from_page(self, page_number):
@@ -220,13 +225,19 @@ class DataStructureDetector:
     Otimizada para dados ferroviários.
     """
     
-    def __init__(self):
+    def __init__(self, verbose=True):
+        self.verbose = verbose
         self.keywords = [
             'código:', 'fer-', 'extensão:', 'município', 'tarifa', 'características',
             'bitola', 'estação', 'viagem', 'demanda', 'passageiros', 'quilométrica',
             'operacional', 'física', 'receita', 'classe', 'econômica', 'executiva',
             'produção', 'tempo', 'categoria', 'empreendimento'
         ]
+    
+    def _print(self, message):
+        """Print condicional baseado no verbose"""
+        if self.verbose:
+            print(message)
     
     def check_structured_data(self, text):
         """Verifica se o texto contém dados estruturados"""
@@ -388,32 +399,3 @@ class DataStructureDetector:
             desempenho['receita_ano_km'] = float(receita_match.group(1).replace('.', '').replace(',', '.'))
         
         return desempenho
-
-
-# Exemplo de uso
-if __name__ == "__main__":
-    # Teste básico
-    pdf_path = r"d:\CODEMGE\PROJETOS\modelagem-transporte-pessoas\Documents\Plano Estratégico Ferroviário (PEF)\Relatorio_PEF_Minas_2021.pdf"
-    
-    if os.path.exists(pdf_path):
-        reader = PDFReader(pdf_path)
-        print("📄 Informações do PDF:")
-        print(reader.get_file_info())
-        
-        # Testar extração de algumas páginas
-        pages = reader.extract_text_best_method(185, 187)
-        print(f"\n📊 Páginas extraídas: {len(pages)}")
-        
-        # Testar detecção de dados estruturados
-        detector = DataStructureDetector()
-        for page_data in pages:
-            print(f"\n📄 Página {page_data['page']}:")
-            structure = detector.check_structured_data(page_data['text'])
-            print(f"   Estruturado: {structure['is_structured']}")
-            print(f"   Confiança: {structure['confidence']:.2%}")
-            
-            if structure['is_structured']:
-                data = detector.extract_structured_data(page_data['text'])
-                print(f"   Dados encontrados: {list(data.keys())}")
-    else:
-        print("❌ PDF não encontrado")
